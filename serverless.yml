@@ -1,0 +1,71 @@
+service: sra-backend
+org: abdullahibnanwar
+app: sra-backend
+
+plugins:
+  - '@serverless/enterprise-plugin'
+  # - serverless-pseudo-parameters
+provider:
+  name: aws
+  runtime: nodejs12.x
+  profile: ${opt:profile, "personal"}
+  region: ${opt:region, "us-east-1"} # sls deploy --region us-east-1
+  stage: ${opt:stage, "dev"} # sls deploy --stage dev
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:Scan
+        - dynamodb:GetItem 
+        - dynamodb:DeleteItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:423793173602:table/${self:custom.DynamoDBTableName}
+
+functions:
+  getUsers:
+    handler: api.handler
+    environment:
+        TABLE_NAME: ${self:custom.DynamoDBTableName}
+    events:
+      - http:
+          path: users
+          method: GET
+          cors: true
+          integration: LAMBDA
+  createUser:
+    handler: api.handler
+    environment:
+        TABLE_NAME: ${self:custom.DynamoDBTableName}
+    events:
+      - http:
+          path: users
+          method: POST
+          cors: true
+          integration: LAMBDA
+  getUserById:
+    handler: api.handler
+    environment:
+        TABLE_NAME: ${self:custom.DynamoDBTableName}
+    events:
+      - http:
+          path: users/{id}
+          method: GET
+          cors: true
+          integration: LAMBDA
+
+custom: 
+  DynamoDBTableName: ${self:service}-sls-users-${self:provider.stage}
+
+resources:
+  Resources: 
+    myDynamoDBTable: 
+      Type: AWS::DynamoDB::Table
+      Properties: 
+        AttributeDefinitions: 
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema: 
+          - AttributeName: user_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.DynamoDBTableName}
+
